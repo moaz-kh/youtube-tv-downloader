@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Download YouTube videos as TV-friendly MP4 files (H.264 video + AAC audio in one file),
 # then check that every downloaded file really has an audio track.
+# Videos that are already in the output folder (same "[id].mp4" name) are skipped.
 #
 # Usage:
 #   ./download.sh URL [URL ...]
@@ -21,7 +22,7 @@ OUT_DIR="$SCRIPT_DIR/../downloads"
 MAX_HEIGHT=1080
 LINKS_FILE=""
 
-usage() { sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'; }
 
 while getopts ":o:q:f:h" opt; do
   case "$opt" in
@@ -90,12 +91,25 @@ FORMAT="bv*[vcodec^=avc1][height<=${MAX_HEIGHT}]+ba[acodec^=mp4a]/bv*[vcodec^=av
 done_list="$(mktemp)"
 trap 'rm -f "$done_list"' EXIT
 failed=()
+skipped=()
 
 i=0
 for url in "${urls[@]}"; do
   i=$((i + 1))
   echo
   echo "[$i/${#urls[@]}] $url"
+
+  # Skip the link if "<title> [<id>].mp4" is already in the output folder.
+  vid="$(yt-dlp --no-playlist --print id "$url" 2>/dev/null | head -n1)"
+  if [ -n "$vid" ]; then
+    existing="$(find "$OUT_DIR" -maxdepth 1 -type f -name "*\[$vid\].mp4" -print -quit)"
+    if [ -n "$existing" ]; then
+      echo "Already downloaded, skipping: $(basename "$existing")"
+      skipped+=("$existing")
+      continue
+    fi
+  fi
+
   if ! yt-dlp \
       -f "$FORMAT" \
       --merge-output-format mp4 \
@@ -134,10 +148,11 @@ while IFS= read -r f; do
   fi
 done < "$done_list"
 
+for f in "${skipped[@]+"${skipped[@]}"}"; do echo "SKIPPED   $(basename "$f")"; done
 for u in "${failed[@]+"${failed[@]}"}"; do echo "FAILED    $u"; done
 
 echo "----------------------------------------"
-echo "OK: $ok   Warnings: $warn   No sound: $no_audio   Failed: ${#failed[@]}"
+echo "OK: $ok   Warnings: $warn   No sound: $no_audio   Skipped: ${#skipped[@]}   Failed: ${#failed[@]}"
 echo "Folder: $(cd "$OUT_DIR" && pwd)"
 if [ "${#failed[@]}" -gt 0 ]; then
   echo "Tip: if downloads fail, update yt-dlp first:  yt-dlp -U   (or: python3 -m pip install -U yt-dlp)"

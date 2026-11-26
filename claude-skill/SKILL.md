@@ -54,7 +54,7 @@ ffprobe -v error -show_entries stream=index,codec_type,codec_name,profile,width,
    - If YouTube can't be reached from that shell (network/proxy errors), stop and use step 3.
 3. **Otherwise, give the user a ready-to-paste command** with their links filled in (see "Running it
    on Windows"), and tell them to run it in PowerShell inside the folder where they want the videos.
-4. **Report the result** from the script's summary: files saved with sound, any "NO AUDIO", any failures.
+4. **Report the result** from the script's summary: files saved with sound, any "NO AUDIO", any "SKIPPED" (already in the folder), any failures.
    On failures, the first fix is updating yt-dlp (`yt-dlp -U` / `winget upgrade yt-dlp.yt-dlp`).
 5. Remind the user to copy the new MP4s to the USB stick. FAT32 sticks can't hold files over 4 GB; if a
    file is bigger, suggest `-q 720` or formatting the stick as exFAT (if the TV supports it).
@@ -132,7 +132,7 @@ youtube-tv-downloader/
 ```
 Videos are saved in `downloads/` (git-ignored) unless `-o` / `-OutDir` says otherwise.
 Both downloaders: check tools → collect links (args, `links.txt`, or pasted) → download each link with
-the format rule → record each saved file → run ffprobe on it → print `OK` / `WARN` / `NO AUDIO` / `FAILED`.
+the format rule → record each saved file → run ffprobe on it → print `OK` / `WARN` / `NO AUDIO` / `FAILED`. Links whose `[id].mp4` is already in the output folder are skipped and shown as `SKIPPED`.
 Exit code is non-zero if anything failed or has no audio (`WARN` alone does not fail).
 
 ## Appendix: `scripts/download.sh` (write this out if the project folder isn't available)

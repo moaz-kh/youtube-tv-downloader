@@ -2,7 +2,7 @@
 
 Download YouTube videos as **MP4 files that play with sound on a TV from a USB stick**: H.264 video + AAC
 audio, merged into one file. After each download the scripts check the file and report `OK`, `WARN`,
-`NO AUDIO` or `FAILED`.
+`NO AUDIO`, `SKIPPED` (already in the folder) or `FAILED`.
 
 ## Why
 
@@ -58,6 +58,12 @@ bash scripts/download.sh -o ~/Videos -q 720 -f links.txt
 To use a links file, copy `links.example.txt` to `links.txt` and put one link per line. Lines starting with
 `#` are ignored. In `download.bat`, put each link in double quotes if it contains `&`.
 
+## Already downloaded videos are skipped
+
+Before downloading, the script looks in the output folder for a file whose name ends in the video's ID,
+like `Some Title [dQw4w9WgXcQ].mp4`. If it is there, the link is skipped and shown as `SKIPPED`. You can run
+the same `links.txt` again and only the new videos are downloaded. To download a video again, delete its file.
+
 ## What the check means
 
 | Result | Meaning |
@@ -65,6 +71,7 @@ To use a links file, copy `links.example.txt` to `links.txt` and put one link pe
 | `OK` | H.264 video + AAC audio. Plays on nearly every TV. |
 | `WARN` | Has sound, but the codecs are not H.264 + AAC (for example Opus audio). The TV may not play it. The script prints an `ffmpeg` command that re-encodes only the audio. |
 | `NO AUDIO` | The file has no audio track. Download it again. |
+| `SKIPPED` | The output folder already has this video (same name ending in `[video id].mp4`), so it was not downloaded again. |
 | `FAILED` | The download failed. See troubleshooting. |
 
 The result also shows the video height. If it is low (such as 360p), that video had no H.264 version

@@ -2,6 +2,7 @@
 .SYNOPSIS
   Download YouTube videos as TV-friendly MP4 files (H.264 video + AAC audio in one file),
   then check that every downloaded file really has an audio track.
+  Videos that are already in the output folder (same "[id].mp4" name) are skipped.
 
 .EXAMPLE
   .\download.ps1 "https://www.youtube.com/watch?v=AAAA" "https://youtu.be/BBBB"
@@ -82,12 +83,25 @@ $OutDir = (Resolve-Path -LiteralPath $OutDir).Path
 $format = "bv*[vcodec^=avc1][height<=$MaxHeight]+ba[acodec^=mp4a]/bv*[vcodec^=avc1][height<=$MaxHeight]+ba/b[ext=mp4][height<=$MaxHeight]/b[ext=mp4]"
 $doneList = [System.IO.Path]::GetTempFileName()
 $failed = @()
+$skipped = @()
 
 $i = 0
 foreach ($url in $list) {
     $i++
     Write-Host ""
     Write-Host "[$i/$($list.Count)] $url" -ForegroundColor Cyan
+
+    # Skip the link if "<title> [<id>].mp4" is already in the output folder.
+    $vid = (& yt-dlp --no-playlist --print id $url 2>$null | Select-Object -First 1)
+    if ($vid) {
+        $existing = Get-ChildItem -LiteralPath $OutDir -File -Filter "*.mp4" |
+            Where-Object { $_.Name.EndsWith("[$vid].mp4") } | Select-Object -First 1
+        if ($existing) {
+            Write-Host "Already downloaded, skipping: $($existing.Name)" -ForegroundColor Yellow
+            $skipped += $existing.Name
+            continue
+        }
+    }
     $ytArgs = @(
         "-f", $format,
         "--merge-output-format", "mp4",
@@ -122,11 +136,12 @@ foreach ($f in Get-Content -LiteralPath $doneList -Encoding UTF8) {
         Write-Host ("OK        {0} {1}p + {2}  {3}" -f $v, $h, $a, $name) -ForegroundColor Green; $ok++
     }
 }
+foreach ($n in $skipped) { Write-Host "SKIPPED   $n" -ForegroundColor Yellow }
 foreach ($u in $failed) { Write-Host "FAILED    $u" -ForegroundColor Red }
 Remove-Item -LiteralPath $doneList -ErrorAction SilentlyContinue
 
 Write-Host "----------------------------------------"
-Write-Host "OK: $ok   Warnings: $warn   No sound: $noAudio   Failed: $($failed.Count)"
+Write-Host "OK: $ok   Warnings: $warn   No sound: $noAudio   Skipped: $($skipped.Count)   Failed: $($failed.Count)"
 Write-Host "Folder: $OutDir"
 if ($failed.Count -gt 0) {
     Write-Host "Tip: if downloads fail, update yt-dlp first:  yt-dlp -U   (or: winget upgrade yt-dlp.yt-dlp)" -ForegroundColor Yellow
